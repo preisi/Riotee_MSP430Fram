@@ -15,7 +15,7 @@ extern unsigned char __etext;
 
 #define CODEDATA_END 0x6000UL
 
-/* R/W bit in the first byte of the SPI command */pri
+/* R/W bit in the first byte of the SPI command */
 #define CMD_RW_WRITE 1UL
 #define CMD_RW_READ 0UL
 #define CMD_RW_OFFSET 7UL

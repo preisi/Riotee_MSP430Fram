@@ -223,7 +223,7 @@ int main(void) {
   __bis_SR_register(GIE + LPM4_bits);
 
   /* WARNING: THIS CAN INTERFERE WITH NRF52 */
-  // uart_init();
+  uart_init();
 
   spi_init();
   dma_init();

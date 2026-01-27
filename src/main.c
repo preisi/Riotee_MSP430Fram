@@ -226,6 +226,7 @@ int main(void) {
 
   /* WARNING: THIS CAN INTERFERE WITH NRF52 */
   uart_init();
+  printf("Hello World\n");
 
   spi_init();
   dma_init();

@@ -15,7 +15,7 @@ extern unsigned char __etext;
 
 #define CODEDATA_END 0x6000UL
 
-/* R/W bit in the first byte of the SPI command */
+/* R/W bit in the first byte of the SPI command */pri
 #define CMD_RW_WRITE 1UL
 #define CMD_RW_READ 0UL
 #define CMD_RW_OFFSET 7UL
@@ -171,14 +171,14 @@ static inline int setup_transfer() {
 
   /* Write request */
   if (dma_cmd_buf[2] & CMD_RW_WRITE_Msk) {
-    printf("write@addr: %u\n", addr);
+    printf("write@addr: %u\r\n", addr);
     _data16_write_addr(&DMA1DA, addr);
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
     DMA1SZ = transfer_size;
     /* Read request */
   } else {
-    printf("read@addr: %u\n", addr);
+    printf("read@addr: %u\r\n", addr);
     UCA0TXBUF = *addr;
     _data16_write_addr(&DMA2SA, addr + 1);
     DMA2CTL |= DMAEN;
@@ -226,7 +226,7 @@ int main(void) {
 
   /* WARNING: THIS CAN INTERFERE WITH NRF52 */
   uart_init();
-  printf("Hello World\n");
+  printf("Hello World\r\n");
 
   spi_init();
   dma_init();

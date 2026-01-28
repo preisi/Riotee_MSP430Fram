@@ -245,15 +245,18 @@ int main(void) {
     /* Clear pending interrupt */
     P1IFG &= ~BIT4;
     /* Signal the controller that we're ready for a command */
+    printf("%s (%d): set C2C-GPIO to high\r\n", __func__, __LINE__);
     PJOUT |= BIT2;
     /* Go into LPM4 and wakeup on GPIO edge */
-    
+    printf("%s (%d): wakeup on GPIO edge\r\n", __func__, __LINE__);
     __bis_SR_register(LPM4_bits);
     /* Signal the controller that we're busy */
+    printf("%s (%d): set C2C-GPIO to low\r\n", __func__, __LINE__);
     PJOUT &= ~BIT2;
     setup_transfer();
       
     /* Signal the controller that we're ready for a transaction */
+    printf("%s (%d): set C2C-GPIO to high\r\n", __func__, __LINE__);
     PJOUT |= BIT2;
 
     /* Configure rising edge interrupt */
@@ -264,14 +267,17 @@ int main(void) {
     /* Go into LPM0 to still allow DMA to move data */
     __bis_SR_register(LPM0_bits);
     /* Signal the controller that we're busy */
+    printf("%s (%d): set C2C-GPIO to low\r\n", __func__, __LINE__);
     PJOUT &= ~BIT2;
 
     /* Reset DMA channels */
+    printf("%s (%d): reset dma\r\n", __func__, __LINE__)
     DMA0CTL &= ~DMAEN;
     DMA1CTL &= ~DMAEN;
     DMA2CTL &= ~DMAEN;
 
     /* Reset SPI */
+    printf("%s (%d): reset spi\r\n", __func__, __LINE__);
     UCA0CTLW0 |= UCSWRST;
     UCA0TXBUF = 0x0;
     UCA0CTLW0 &= ~UCSWRST;

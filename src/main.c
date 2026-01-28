@@ -271,7 +271,7 @@ int main(void) {
     PJOUT &= ~BIT2;
 
     /* Reset DMA channels */
-    printf("%s (%d): reset dma\r\n", __func__, __LINE__)
+    printf("%s (%d): reset dma\r\n", __func__, __LINE__);
     DMA0CTL &= ~DMAEN;
     DMA1CTL &= ~DMAEN;
     DMA2CTL &= ~DMAEN;

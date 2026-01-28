@@ -151,6 +151,8 @@ static inline int setup_transfer() {
   WDTCTL = WDTPW | WDTIS__64 | WDTCNTCL | WDTSSEL__ACLK;
 
   /* Wait for DMA transfer to finish */
+  printf("%s (%d): waiting for DMA transfer to finish\r\n", __file__, __LINE__);
+
   while ((DMA0CTL & DMAIFG) == 0) {
   };
   DMA0CTL &= ~DMAIFG;
@@ -171,14 +173,14 @@ static inline int setup_transfer() {
 
   /* Write request */
   if (dma_cmd_buf[2] & CMD_RW_WRITE_Msk) {
-    printf("write@addr: %u\r\n", addr);
+    printf("%s (%d): write@addr: %u\r\n", __file__, __LINE__, addr);
     _data16_write_addr(&DMA1DA, addr);
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
     DMA1SZ = transfer_size;
     /* Read request */
   } else {
-    printf("read@addr: %u\r\n", addr);
+    printf("%s (%d): read@addr: %u\r\n", __file__, __LINE__, addr);
     UCA0TXBUF = *addr;
     _data16_write_addr(&DMA2SA, addr + 1);
     DMA2CTL |= DMAEN;
@@ -226,10 +228,13 @@ int main(void) {
 
   /* WARNING: THIS CAN INTERFERE WITH NRF52 */
   uart_init();
-  printf("Hello World\r\n");
+  printf("%s (%d): uart initialized\r\n", __file__, __LINE__);
 
   spi_init();
+  printf("%s (%d): spi initialized\r\n", __file__, __LINE__);
+
   dma_init();
+  printf("%s (%d): dma initialized\r\n", __file__, __LINE__);
 
   while (1) {
     /* Prepare for command transfer */
@@ -242,10 +247,12 @@ int main(void) {
     /* Signal the controller that we're ready for a command */
     PJOUT |= BIT2;
     /* Go into LPM4 and wakeup on GPIO edge */
+    
     __bis_SR_register(LPM4_bits);
     /* Signal the controller that we're busy */
     PJOUT &= ~BIT2;
     setup_transfer();
+      
     /* Signal the controller that we're ready for a transaction */
     PJOUT |= BIT2;
 

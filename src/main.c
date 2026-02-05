@@ -151,13 +151,13 @@ static inline int setup_transfer() {
   WDTCTL = WDTPW | WDTIS__64 | WDTCNTCL | WDTSSEL__ACLK;
 
   /* Wait for DMA transfer to finish */
-  printf("%s (%d): waiting for DMA transfer to finish\r\n", __func__, __LINE__);
-
   while ((DMA0CTL & DMAIFG) == 0) {
   };
   DMA0CTL &= ~DMAIFG;
   /* Stop watchdog */
   WDTCTL = WDTPW | WDTHOLD | WDTCNTCL;
+  printf("%s (%d): DMA transfer finished\r\n", __func__, __LINE__);
+
 
   uint8_t *addr = (uint8_t *)CODEDATA_END + *((uintptr_t *)dma_cmd_buf);
 
@@ -248,10 +248,10 @@ int main(void) {
     printf("%s (%d): set C2C-GPIO to high\r\n", __func__, __LINE__);
     PJOUT |= BIT2;
     /* Go into LPM4 and wakeup on GPIO edge */
-    printf("%s (%d): wakeup on GPIO edge\r\n", __func__, __LINE__);
+    printf("%s (%d): waiting for wakeup on GPIO edge\r\n", __func__, __LINE__);
     __bis_SR_register(LPM4_bits);
     /* Signal the controller that we're busy */
-    printf("%s (%d): set C2C-GPIO to low\r\n", __func__, __LINE__);
+    printf("%s (%d): woken! setting C2C-GPIO to low\r\n", __func__, __LINE__);
     PJOUT &= ~BIT2;
     setup_transfer();
       

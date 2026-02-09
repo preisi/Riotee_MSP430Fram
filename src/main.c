@@ -173,14 +173,14 @@ static inline int setup_transfer() {
 
   /* Write request */
   if (dma_cmd_buf[2] & CMD_RW_WRITE_Msk) {
-    printf("%s (%d): write@addr: %u\r\n", __func__, __LINE__, addr);
+    printf("w\r\n");
     _data16_write_addr(&DMA1DA, addr);
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
     DMA1SZ = transfer_size;
     /* Read request */
   } else {
-    printf("%s (%d): read@addr: %u\r\n", __func__, __LINE__, addr);
+    printf("r\r\n");
     UCA0TXBUF = *addr;
     _data16_write_addr(&DMA2SA, addr + 1);
     DMA2CTL |= DMAEN;
@@ -228,15 +228,14 @@ int main(void) {
 
   /* WARNING: THIS CAN INTERFERE WITH NRF52 */
   uart_init();
-  printf("%s (%d): uart initialized\r\n", __func__, __LINE__);
 
   spi_init();
-  printf("%s (%d): spi initialized\r\n", __func__, __LINE__);
 
   dma_init();
-  printf("%s (%d): dma initialized\r\n", __func__, __LINE__);
 
   while (1) {
+    printf("start\r\n");
+
     /* Prepare for command transfer */
     DMA0SZ = 3;
 
@@ -245,18 +244,14 @@ int main(void) {
     /* Clear pending interrupt */
     P1IFG &= ~BIT4;
     /* Signal the controller that we're ready for a command */
-    printf("%s (%d): set C2C-GPIO to high\r\n", __func__, __LINE__);
     PJOUT |= BIT2;
     /* Go into LPM4 and wakeup on GPIO edge */
-    printf("%s (%d): waiting for wakeup on GPIO edge\r\n", __func__, __LINE__);
     __bis_SR_register(LPM4_bits);
     /* Signal the controller that we're busy */
-    printf("%s (%d): woken! setting C2C-GPIO to low\r\n", __func__, __LINE__);
     PJOUT &= ~BIT2;
     setup_transfer();
       
     /* Signal the controller that we're ready for a transaction */
-    printf("%s (%d): set C2C-GPIO to high\r\n", __func__, __LINE__);
     PJOUT |= BIT2;
 
     /* Configure rising edge interrupt */
@@ -267,17 +262,14 @@ int main(void) {
     /* Go into LPM0 to still allow DMA to move data */
     __bis_SR_register(LPM0_bits);
     /* Signal the controller that we're busy */
-    printf("%s (%d): set C2C-GPIO to low\r\n", __func__, __LINE__);
     PJOUT &= ~BIT2;
 
     /* Reset DMA channels */
-    printf("%s (%d): reset dma\r\n", __func__, __LINE__);
     DMA0CTL &= ~DMAEN;
     DMA1CTL &= ~DMAEN;
     DMA2CTL &= ~DMAEN;
 
     /* Reset SPI */
-    printf("%s (%d): reset spi\r\n", __func__, __LINE__);
     UCA0CTLW0 |= UCSWRST;
     UCA0TXBUF = 0x0;
     UCA0CTLW0 &= ~UCSWRST;

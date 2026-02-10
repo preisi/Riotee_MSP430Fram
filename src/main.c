@@ -172,14 +172,14 @@ static inline int setup_transfer() {
 
   /* Write request */
   if (dma_cmd_buf[2] & CMD_RW_WRITE_Msk) {
-    printf("w: %X\r\n", *addr);
+    printf("w: %X, %X\r\n", addr, *addr);
     _data16_write_addr(&DMA1DA, addr);
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
     DMA1SZ = transfer_size;
     /* Read request */
   } else {
-    printf("r: %X\r\n", *addr);
+    printf("r: %X, %X\r\n", addr + 1, *addr);
     UCA0TXBUF = *addr;
     _data16_write_addr(&DMA2SA, addr + 1);
     DMA2CTL |= DMAEN;

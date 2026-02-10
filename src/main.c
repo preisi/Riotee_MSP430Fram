@@ -156,10 +156,9 @@ static inline int setup_transfer() {
   DMA0CTL &= ~DMAIFG;
   /* Stop watchdog */
   WDTCTL = WDTPW | WDTHOLD | WDTCNTCL;
-  printf("%s (%d): DMA transfer finished\r\n", __func__, __LINE__);
-
 
   uint8_t *addr = (uint8_t *)CODEDATA_END + *((uintptr_t *)dma_cmd_buf);
+  printf("check\r\n");
 
   /* Protect interrupt vector table and end of FRAM from access*/
   if (addr < (uint8_t *)IVT_START)
@@ -173,14 +172,14 @@ static inline int setup_transfer() {
 
   /* Write request */
   if (dma_cmd_buf[2] & CMD_RW_WRITE_Msk) {
-    printf("w\r\n");
+    printf("w: %u\r\n", addr);
     _data16_write_addr(&DMA1DA, addr);
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
     DMA1SZ = transfer_size;
     /* Read request */
   } else {
-    printf("r\r\n");
+    printf("r: %u\r\n", addr);
     UCA0TXBUF = *addr;
     _data16_write_addr(&DMA2SA, addr + 1);
     DMA2CTL |= DMAEN;
@@ -233,9 +232,8 @@ int main(void) {
 
   dma_init();
 
+  printf("while-start\r\n");
   while (1) {
-    printf("start\r\n");
-
     /* Prepare for command transfer */
     DMA0SZ = 3;
 
@@ -273,5 +271,7 @@ int main(void) {
     UCA0CTLW0 |= UCSWRST;
     UCA0TXBUF = 0x0;
     UCA0CTLW0 &= ~UCSWRST;
+
+    printf("while-next\r\n");
   };
 }

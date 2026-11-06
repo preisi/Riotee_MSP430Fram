@@ -41,9 +41,16 @@ After the SPI controller pulls the CS line low, the peripheral (this firmware) s
 These three control bytes contain the 20-bit target address of the memory access and the type of operation (R/W).
 The address is transferred lowest byte first.
 If the highest bit of the third command byte is set, the operation is a write operation, otherwise it is a read operation.
+The remaining three bits of the third command byte are reserved and must be zero.
 After receiving the three command bytes, the peripheral will set up the corresponding DMA transfer and wait in a low power mode until the CS line goes high.
 The controller shall keep the CS line low until the transfer has finished.
 Upon this rising edge, the peripheral stops the transfer and transitions to low power mode again.
+
+In addition to the SPI lines, the peripheral drives a ready signal (C2C.GPIO).
+It is high while the peripheral waits for a command and goes low shortly after the CS line has been pulled low.
+After a valid command has been received and the corresponding DMA transfer has been set up, the ready signal goes high again.
+If the command is rejected (see [Memory map](#memory-map)), the ready signal stays low until the CS line goes high.
+The controller should therefore check that the ready signal is high before transferring data.
 
 Transfers can have a maximum size of 65535 bytes.
 
@@ -58,7 +65,7 @@ The time from the rising edge of the CS line until the next falling edge of the 
 The MSP430FR5962 has a total of 128kB FRAM.
 Unfortunately, the interrupt vector table lives in the middle of this memory so the 128kB cannot be used contiguously. Instead, they are separated into two regions.
 The lower region starts at 0x4000 and ends at 0xFF80 where the IVT lives.
-The upper region starts at 0xFFFF and ends at 0x24000.
+The upper region starts at 0x10000 and ends at 0x24000.
 The code/data for the firmware for the MSP430 also has to be placed within this area.
 The linker script in this repository defines a dedicated section for the code and data of the firmware ranging from 0x4000 to 0x6000.
 
@@ -66,5 +73,6 @@ The remaining memory area from 0x6000 to 0x24000, excluding the IVT (0xFF80-0xFF
 For an external application talking to the device over SPI, this memory gets mapped to 0x0000 to 0x1E000.
 The firmware will protect the IVT from access.
 Any operation extending over the IVT region or the end of the memory will get truncated without the controller noticing.
+Commands with non-zero reserved bits or a start address inside the IVT region or beyond the end of the memory (i.e., at or above 0x1E000 from the view of the controller) are rejected.
 
 **The code on the SPI controller talking to this firmware must avoid reading/writing to the IVT region, which lies between 0x9F80 and 0x9FFF from its view.**

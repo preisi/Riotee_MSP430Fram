@@ -4,16 +4,24 @@
 
 #define FRAM_END (FRAM_START + FRAM_LENGTH)
 
-#define IVT_START 0xFF80
-#define IVT_END 0xFFFF
+/* Interrupt vector table and signatures: [IVT_START, IVT_END) */
+#define IVT_START 0xFF80UL
+#define IVT_END 0x10000UL
 
 #define CODEDATA_END 0x6000UL
+
+/* Maximum number of bytes per transfer */
+#define TRANSFER_SIZE_MAX 0xFFFFUL
 
 /* R/W bit in the first byte of the SPI command */
 #define CMD_RW_WRITE 1UL
 #define CMD_RW_READ 0UL
 #define CMD_RW_OFFSET 7UL
 #define CMD_RW_WRITE_Msk (CMD_RW_WRITE << CMD_RW_OFFSET)
+
+/* The command consists of a 20-bit address, three reserved bits (must be zero) and the R/W bit */
+#define CMD_ADDR_Msk 0x0FFFFFUL
+#define CMD_RSVD_Msk 0x700000UL
 
 /* C2C.CS is connected to P1.4 */
 #define CS_PIN BIT4
@@ -39,7 +47,8 @@ static void spi_init() {
   UCA0CTLW0 &= ~UCSWRST;
 }
 
-static uint8_t dma_cmd_buf[4];
+/* Written by DMA0, hence volatile */
+static volatile uint8_t dma_cmd_buf[3];
 
 static void dma_init(void) {
   /* DMA0 reads the first three command bytes into memory */
@@ -181,17 +190,31 @@ static inline int setup_transfer() {
   /* Stop watchdog */
   WDTCTL = WDTPW | WDTHOLD | WDTCNTCL;
 
-  uint8_t *addr = (uint8_t *)CODEDATA_END + *((uintptr_t *)dma_cmd_buf);
+  /* The address is transferred lowest byte first */
+  uint32_t cmd = (uint32_t)dma_cmd_buf[0] | ((uint32_t)dma_cmd_buf[1] << 8) | ((uint32_t)dma_cmd_buf[2] << 16);
 
-  /* Protect interrupt vector table and end of FRAM from access*/
-  if (addr < (uint8_t *)IVT_START)
-    transfer_size = (uint8_t *)IVT_START - addr;
-  else if (addr < (uint8_t *)IVT_END)
+  /* Reject malformed commands */
+  if (cmd & CMD_RSVD_Msk)
     return -1;
-  else if (addr > (uint8_t *)(FRAM_END - 0xFFFF))
-    transfer_size = (uint8_t *)FRAM_END - addr;
+
+  /* Compute the physical address with 32-bit arithmetic, so it cannot wrap around */
+  uint32_t addr = CODEDATA_END + (cmd & CMD_ADDR_Msk);
+  uint32_t limit;
+
+  /* Protect interrupt vector table and memory beyond the end of FRAM from access */
+  if (addr < IVT_START)
+    limit = IVT_START;
+  else if (addr < IVT_END)
+    return -1;
+  else if (addr < FRAM_END)
+    limit = FRAM_END;
   else
-    transfer_size = 0xFFFF;
+    return -1;
+
+  if (limit - addr > TRANSFER_SIZE_MAX)
+    transfer_size = TRANSFER_SIZE_MAX;
+  else
+    transfer_size = limit - addr;
 
   /* Write request */
   if (dma_cmd_buf[2] & CMD_RW_WRITE_Msk) {
@@ -201,7 +224,7 @@ static inline int setup_transfer() {
     DMA1SZ = transfer_size;
     /* Read request */
   } else {
-    UCA0TXBUF = *addr;
+    UCA0TXBUF = *(uint8_t *)(uintptr_t)addr;
     _data16_write_addr(&DMA2SA, addr + 1);
     DMA2CTL |= DMAEN;
     DMA2SZ = transfer_size;
@@ -271,11 +294,14 @@ int main(void) {
     wait_for_cs(false, LPM4_bits, true);
     /* Signal the controller that we're busy */
     PJOUT &= ~READY_PIN;
-    setup_transfer();
+    int rc = setup_transfer();
 
-    /* Signal the controller that we're ready for a transaction and sleep in LPM0 (to still allow DMA to move data)
-     * until CS is released */
-    wait_for_cs(true, LPM0_bits, true);
+    /*
+     * Signal the controller that we're ready for a transaction and sleep in LPM0 (to still allow DMA to move data)
+     * until CS is released. If the command was rejected, the ready signal stays low until CS is released, so the
+     * controller can detect the error before transferring data.
+     */
+    wait_for_cs(true, LPM0_bits, rc == 0);
     /* Signal the controller that we're busy */
     PJOUT &= ~READY_PIN;
 

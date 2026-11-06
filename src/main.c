@@ -24,8 +24,8 @@ static void spi_init() {
   /* Put to reset */
   UCA0CTLW0 |= UCSWRST;
 
-  /* Configure for 3-pin SPI slave */
-  UCA0CTLW0 = UCCKPH | UCMSB | UCSYNC | UCMODE_0;
+  /* Configure for 3-pin SPI slave, keep in reset until the pins are configured */
+  UCA0CTLW0 = UCSWRST | UCCKPH | UCMSB | UCSYNC | UCMODE_0;
 
   /* UCA0CLK on P1.5 */
   P1SEL0 &= ~BIT5;

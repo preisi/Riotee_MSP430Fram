@@ -168,11 +168,6 @@ static void wait_for_cs(bool high, uint16_t lpm_bits, bool set_ready) {
 static inline int setup_transfer() {
   uint16_t transfer_size;
 
-  /* Clear RX and DMA interrupt */
-  UCA0IFG &= ~UCRXIFG;
-  /* Enable DMA0 */
-  DMA0CTL |= DMAEN;
-
   /* Start watchdog with ~2.95ms period */
   WDTCTL = WDTPW | WDTIS__64 | WDTCNTCL | WDTSSEL__ACLK;
 
@@ -253,8 +248,16 @@ int main(void) {
   dma_init();
 
   while (1) {
-    /* Prepare for command transfer */
+    /*
+     * Prepare for command transfer. DMA0 is armed before going to sleep so
+     * that the command bytes are captured independently of how long it takes
+     * to wake up from LPM4 after CS is asserted.
+     */
     DMA0SZ = 3;
+    /* Clear RX interrupt */
+    UCA0IFG &= ~UCRXIFG;
+    /* Enable DMA0 */
+    DMA0CTL |= DMAEN;
 
     /* Signal the controller that we're ready for a command and sleep in LPM4 until CS is asserted */
     wait_for_cs(false, LPM4_bits, true);

@@ -8,18 +8,12 @@ LINKER_SCRIPT:= linker.ld
 DEVICE  = MSP430FR5962
 
 CSRC_FILES += \
-  uart.c \
-  printf.c \
   main.c
 
-ASM_FILES = \
-  transfer.S
-
-OBJ_FILES = $(CSRC_FILES:.c=.o) $(ASM_FILES:.S=.o)
+OBJ_FILES = $(CSRC_FILES:.c=.o)
 
 INC_FOLDERS += \
-	$(SUPPORT_FILE_DIRECTORY) \
-	./include
+	$(SUPPORT_FILE_DIRECTORY)
 
 INCLUDES = $(INC_FOLDERS:%=-I%)
 
@@ -43,10 +37,6 @@ all: ${OUTPUT_DIR}/build.hex ${OUTPUT_DIR}/build.elf
 ${OUTPUT_DIR}/%.o: ${SRC_DIR}/%.c
 	${PREFIX}gcc ${CFLAGS} -c $< -o $@
 	@echo "CC $<"
-
-${OUTPUT_DIR}/%.o: ${SRC_DIR}/%.S
-	${PREFIX}gcc ${CFLAGS} -c $< -o $@
-	@echo "AS $<"
 
 ${OUTPUT_DIR}/build.elf: $(OBJ_FILES:%=${OUTPUT_DIR}/%)
 	${PREFIX}gcc ${LDFLAGS} $^ -o $@

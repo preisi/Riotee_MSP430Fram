@@ -1,12 +1,6 @@
 #include <msp430.h>
-#include <msp430fr5962.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#include "printf.h"
-#include "uart.h"
-
-extern unsigned char __etext;
 
 #define FRAM_END (FRAM_START + FRAM_LENGTH)
 
@@ -20,11 +14,6 @@ extern unsigned char __etext;
 #define CMD_RW_READ 0UL
 #define CMD_RW_OFFSET 7UL
 #define CMD_RW_WRITE_Msk (CMD_RW_WRITE << CMD_RW_OFFSET)
-
-static inline void delay_cycles(long unsigned int cycles) {
-  for (long unsigned int i = 0; i < cycles; i++)
-    __no_operation();
-}
 
 static void spi_init() {
   /* Put to reset */
@@ -48,11 +37,6 @@ static void spi_init() {
 static uint8_t dma_cmd_buf[4];
 
 static void dma_init(void) {
-  /* Reset DMA channels */
-  DMA0CTL &= ~DMAEN;
-  DMA1CTL &= ~DMAEN;
-  DMA2CTL &= ~DMAEN;
-
   /* DMA0 reads the first three command bytes into memory */
   DMA0CTL = DMASRCBYTE | DMADSTBYTE | DMADSTINCR_3 | DMADT_0;
   /* trigger 14 is USCIA0RXIFG*/
@@ -212,8 +196,6 @@ int main(void) {
 
   /* Clear pending interrupt */
   P1IFG &= ~BIT4;
-  /* Input direction for CS */
-  P1DIR &= ~BIT4;
   /* Enable interrupt */
   P1IE |= BIT4;
   /* Configure rising edge interrupt */
@@ -221,9 +203,6 @@ int main(void) {
 
   /* Wait in LPM4 until CS is high */
   __bis_SR_register(GIE + LPM4_bits);
-
-  /* WARNING: THIS CAN INTERFERE WITH NRF52 */
-  // uart_init();
 
   spi_init();
   dma_init();

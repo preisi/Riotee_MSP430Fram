@@ -240,11 +240,14 @@ int main(void) {
   P1IFG &= ~CS_PIN;
   /* Enable interrupt */
   P1IE |= CS_PIN;
-  /* Configure rising edge interrupt */
-  P1IES &= ~CS_PIN;
 
-  /* Wait in LPM4 until CS is high */
-  __bis_SR_register(GIE + LPM4_bits);
+  /*
+   * Wait in LPM4 until CS is high, i.e., until the controller is not in the
+   * middle of a transaction. This has to wait for the level and not for a
+   * rising edge: If CS is already high, the controller does not assert CS
+   * before the ready signal is raised, so a rising edge would never come.
+   */
+  wait_for_cs(true, LPM4_bits, false);
 
   spi_init();
   dma_init();

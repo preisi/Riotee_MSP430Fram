@@ -168,8 +168,11 @@ static void wait_for_cs(bool high, uint16_t lpm_bits, bool set_ready) {
 static inline int setup_transfer() {
   uint16_t transfer_size;
 
-  /* Start watchdog with ~2.95ms period */
-  WDTCTL = WDTPW | WDTIS__64 | WDTCNTCL | WDTSSEL__ACLK;
+  /*
+   * Start watchdog in case the command never completes. 64 cycles of VLOCLK
+   * (~9.4kHz typ.) result in a timeout of roughly 7ms.
+   */
+  WDTCTL = WDTPW | WDTIS__64 | WDTCNTCL | WDTSSEL__VLOCLK;
 
   /* Wait for DMA transfer to finish */
   while ((DMA0CTL & DMAIFG) == 0) {
@@ -229,7 +232,12 @@ int main(void) {
   /* No divider */
   CSCTL3 = DIVS_0 | DIVM_0 | DIVA_0;
 
-  CSCTL2 = SELM__DCOCLK | SELS__DCOCLK | SELA__LFXTCLK;
+  /*
+   * Source ACLK from VLO. The LFXT crystal on PJ.4/PJ.5 is not enabled: it
+   * would be stopped in LPM4 and could not start up within the few
+   * milliseconds the watchdog runs after waking up.
+   */
+  CSCTL2 = SELM__DCOCLK | SELS__DCOCLK | SELA__VLOCLK;
 
   /* Clear pending interrupt */
   P1IFG &= ~CS_PIN;

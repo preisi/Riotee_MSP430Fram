@@ -223,11 +223,14 @@ static inline int setup_transfer() {
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
   } else { /* rw == CMD_RW_READ */
+    /* The first byte is put into the TX buffer directly, DMA2 transfers the remaining ones */
     UCA0TXBUF = *(uint8_t *)(uintptr_t)addr;
-    _data16_write_addr(&DMA2SA, addr + 1);
-    /* The size has to be programmed before the channel is enabled */
-    DMA2SZ = transfer_size;
-    DMA2CTL |= DMAEN;
+    if (transfer_size > 1) {
+      _data16_write_addr(&DMA2SA, addr + 1);
+      /* The size has to be programmed before the channel is enabled */
+      DMA2SZ = transfer_size - 1;
+      DMA2CTL |= DMAEN;
+    }
   }
 
   return 0;

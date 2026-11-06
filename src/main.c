@@ -128,6 +128,43 @@ __attribute__((interrupt(PORT1_VECTOR))) void PORT1_ISR(void) {
   LPM4_EXIT;
 }
 
+static inline bool cs_is_high(void) {
+  return (P1IN & CS_PIN) != 0;
+}
+
+/*
+ * Sleeps in the low-power mode given by lpm_bits until CS has the requested
+ * level. If set_ready is true, the ready signal is raised before going to
+ * sleep.
+ *
+ * Edge detection is armed and the level is checked with interrupts disabled.
+ * GIE and the LPM bits are then set by a single instruction. If CS changes
+ * after the level check, the port interrupt is serviced right after entering
+ * the low-power mode and clears the LPM bits on the stack, so the edge cannot
+ * get lost. The ready signal is raised only after edge detection is armed so
+ * that the controller cannot assert CS before we are able to notice it.
+ *
+ * Returns with interrupts disabled.
+ */
+static void wait_for_cs(bool high, uint16_t lpm_bits, bool set_ready) {
+  __disable_interrupt();
+
+  if (high)
+    P1IES &= ~CS_PIN;
+  else
+    P1IES |= CS_PIN;
+  /* Writing P1IES may set P1IFG, so clear it afterwards */
+  P1IFG &= ~CS_PIN;
+
+  if (set_ready)
+    PJOUT |= READY_PIN;
+
+  while (cs_is_high() != high) {
+    __bis_SR_register(GIE | lpm_bits);
+    __disable_interrupt();
+  }
+}
+
 static inline int setup_transfer() {
   uint16_t transfer_size;
 
@@ -216,27 +253,15 @@ int main(void) {
     /* Prepare for command transfer */
     DMA0SZ = 3;
 
-    /* Configure falling edge */
-    P1IES |= CS_PIN;
-    /* Clear pending interrupt */
-    P1IFG &= ~CS_PIN;
-    /* Signal the controller that we're ready for a command */
-    PJOUT |= READY_PIN;
-    /* Go into LPM4 and wakeup on GPIO edge */
-    __bis_SR_register(LPM4_bits);
+    /* Signal the controller that we're ready for a command and sleep in LPM4 until CS is asserted */
+    wait_for_cs(false, LPM4_bits, true);
     /* Signal the controller that we're busy */
     PJOUT &= ~READY_PIN;
     setup_transfer();
-    /* Signal the controller that we're ready for a transaction */
-    PJOUT |= READY_PIN;
 
-    /* Configure rising edge interrupt */
-    P1IES &= ~CS_PIN;
-    /* Clear pending interrupt */
-    P1IFG &= ~CS_PIN;
-
-    /* Go into LPM0 to still allow DMA to move data */
-    __bis_SR_register(LPM0_bits);
+    /* Signal the controller that we're ready for a transaction and sleep in LPM0 (to still allow DMA to move data)
+     * until CS is released */
+    wait_for_cs(true, LPM0_bits, true);
     /* Signal the controller that we're busy */
     PJOUT &= ~READY_PIN;
 

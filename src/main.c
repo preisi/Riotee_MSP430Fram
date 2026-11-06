@@ -218,14 +218,16 @@ static inline int setup_transfer() {
 
   if (rw == CMD_RW_WRITE) {
     _data16_write_addr(&DMA1DA, addr);
+    /* The size has to be programmed before the channel is enabled */
+    DMA1SZ = transfer_size;
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
-    DMA1SZ = transfer_size;
   } else { /* rw == CMD_RW_READ */
     UCA0TXBUF = *(uint8_t *)(uintptr_t)addr;
     _data16_write_addr(&DMA2SA, addr + 1);
-    DMA2CTL |= DMAEN;
+    /* The size has to be programmed before the channel is enabled */
     DMA2SZ = transfer_size;
+    DMA2CTL |= DMAEN;
   }
 
   return 0;

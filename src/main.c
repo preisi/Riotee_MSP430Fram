@@ -15,6 +15,11 @@
 #define CMD_RW_OFFSET 7UL
 #define CMD_RW_WRITE_Msk (CMD_RW_WRITE << CMD_RW_OFFSET)
 
+/* C2C.CS is connected to P1.4 */
+#define CS_PIN BIT4
+/* C2C.GPIO (ready signal to the controller) is connected to PJ.2 */
+#define READY_PIN BIT2
+
 static void spi_init() {
   /* Put to reset */
   UCA0CTLW0 |= UCSWRST;
@@ -119,7 +124,7 @@ static int gpio_init(void) {
 }
 
 __attribute__((interrupt(PORT1_VECTOR))) void PORT1_ISR(void) {
-  P1IFG &= ~BIT4;
+  P1IFG &= ~CS_PIN;
   LPM4_EXIT;
 }
 
@@ -195,11 +200,11 @@ int main(void) {
   CSCTL2 = SELM__DCOCLK | SELS__DCOCLK | SELA__LFXTCLK;
 
   /* Clear pending interrupt */
-  P1IFG &= ~BIT4;
+  P1IFG &= ~CS_PIN;
   /* Enable interrupt */
-  P1IE |= BIT4;
+  P1IE |= CS_PIN;
   /* Configure rising edge interrupt */
-  P1IES &= ~BIT4;
+  P1IES &= ~CS_PIN;
 
   /* Wait in LPM4 until CS is high */
   __bis_SR_register(GIE + LPM4_bits);
@@ -212,28 +217,28 @@ int main(void) {
     DMA0SZ = 3;
 
     /* Configure falling edge */
-    P1IES |= BIT4;
+    P1IES |= CS_PIN;
     /* Clear pending interrupt */
-    P1IFG &= ~BIT4;
+    P1IFG &= ~CS_PIN;
     /* Signal the controller that we're ready for a command */
-    PJOUT |= BIT2;
+    PJOUT |= READY_PIN;
     /* Go into LPM4 and wakeup on GPIO edge */
     __bis_SR_register(LPM4_bits);
     /* Signal the controller that we're busy */
-    PJOUT &= ~BIT2;
+    PJOUT &= ~READY_PIN;
     setup_transfer();
     /* Signal the controller that we're ready for a transaction */
-    PJOUT |= BIT2;
+    PJOUT |= READY_PIN;
 
     /* Configure rising edge interrupt */
-    P1IES &= ~BIT4;
+    P1IES &= ~CS_PIN;
     /* Clear pending interrupt */
-    P1IFG &= ~BIT4;
+    P1IFG &= ~CS_PIN;
 
     /* Go into LPM0 to still allow DMA to move data */
     __bis_SR_register(LPM0_bits);
     /* Signal the controller that we're busy */
-    PJOUT &= ~BIT2;
+    PJOUT &= ~READY_PIN;
 
     /* Reset DMA channels */
     DMA0CTL &= ~DMAEN;

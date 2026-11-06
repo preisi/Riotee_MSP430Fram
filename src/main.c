@@ -13,15 +13,13 @@
 /* Maximum number of bytes per transfer */
 #define TRANSFER_SIZE_MAX 0xFFFFUL
 
-/* R/W bit in the first byte of the SPI command */
-#define CMD_RW_WRITE 1UL
-#define CMD_RW_READ 0UL
-#define CMD_RW_OFFSET 7UL
-#define CMD_RW_WRITE_Msk (CMD_RW_WRITE << CMD_RW_OFFSET)
-
 /* The command consists of a 20-bit address, three reserved bits (must be zero) and the R/W bit */
 #define CMD_ADDR_Msk 0x0FFFFFUL
 #define CMD_RSVD_Msk 0x700000UL
+#define CMD_RW_Pos 23
+#define CMD_RW_Msk (1UL << CMD_RW_Pos)
+#define CMD_RW_READ (0UL << CMD_RW_Pos)
+#define CMD_RW_WRITE (1UL << CMD_RW_Pos)
 
 /* C2C.CS is connected to P1.4 */
 #define CS_PIN BIT4
@@ -216,14 +214,14 @@ static inline int setup_transfer() {
   else
     transfer_size = limit - addr;
 
-  /* Write request */
-  if (dma_cmd_buf[2] & CMD_RW_WRITE_Msk) {
+  uint32_t rw = cmd & CMD_RW_Msk;
+
+  if (rw == CMD_RW_WRITE) {
     _data16_write_addr(&DMA1DA, addr);
     UCA0IFG &= ~UCRXIFG;
     DMA1CTL |= DMAEN;
     DMA1SZ = transfer_size;
-    /* Read request */
-  } else {
+  } else { /* rw == CMD_RW_READ */
     UCA0TXBUF = *(uint8_t *)(uintptr_t)addr;
     _data16_write_addr(&DMA2SA, addr + 1);
     DMA2CTL |= DMAEN;

@@ -176,13 +176,18 @@ static inline int setup_transfer() {
   uint16_t transfer_size;
 
   /*
-   * Start watchdog in case the command never completes. 64 cycles of VLOCLK
-   * (~9.4kHz typ.) result in a timeout of roughly 7ms.
+   * Start watchdog as a last resort in case the command never completes. 64
+   * cycles of VLOCLK (~9.4kHz typ.) result in a timeout of roughly 7ms.
    */
   WDTCTL = WDTPW | WDTIS__64 | WDTCNTCL | WDTSSEL__VLOCLK;
 
   /* Wait for DMA transfer to finish */
   while ((DMA0CTL & DMAIFG) == 0) {
+    /* Abort if the controller releases CS before the command is complete */
+    if (cs_is_high()) {
+      WDTCTL = WDTPW | WDTHOLD | WDTCNTCL;
+      return -1;
+    }
   };
   DMA0CTL &= ~DMAIFG;
   /* Stop watchdog */
